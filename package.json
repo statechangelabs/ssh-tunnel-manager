@@ -1,0 +1,27 @@
+{
+  "name": "@statechange/ssh-tunnel-manager",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "ssh-tunnels": "dist/cli.mjs"
+  },
+  "main": "dist/cli.mjs",
+  "files": ["dist/", "renderer/", "scripts/postinstall.mjs"],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "postinstall": "node scripts/postinstall.mjs",
+    "dev:app": "electron dist/app.mjs"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "tree-kill": "^1.2.2",
+    "commander": "^13.0.0",
+    "electron": "^34.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.0",
+    "electron-builder": "^25.0.0"
+  }
+}

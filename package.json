@@ -1,6 +1,7 @@
 {
   "name": "@statechange/ssh-tunnel-manager",
-  "version": "0.1.1",
+  "version": "0.1.2",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "ssh-tunnels": "dist/cli.mjs"

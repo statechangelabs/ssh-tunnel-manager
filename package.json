@@ -1,12 +1,16 @@
 {
   "name": "@statechange/ssh-tunnel-manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "bin": {
     "ssh-tunnels": "dist/cli.mjs"
   },
   "main": "dist/cli.mjs",
-  "files": ["dist/", "renderer/", "scripts/postinstall.mjs"],
+  "files": [
+    "dist/",
+    "renderer/",
+    "scripts/postinstall.mjs"
+  ],
   "scripts": {
     "build": "node scripts/build.mjs",
     "postinstall": "node scripts/postinstall.mjs",

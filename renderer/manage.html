@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'">
+  <title>SSH Tunnels</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      font-size: 13px;
+    }
+    h2 { font-size: 16px; margin-bottom: 16px; font-weight: 600; }
+
+    /* ── List View ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .header h2 { margin-bottom: 0; }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6e6e73;
+    }
+    .empty-state p { margin-bottom: 12px; }
+    .tunnel-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .tunnel-card {
+      background: white;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .tunnel-status {
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .tunnel-status.alive { color: #34C759; }
+    .tunnel-status.dead { color: #d2d2d7; }
+    .tunnel-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .tunnel-name {
+      font-weight: 600;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tunnel-detail {
+      color: #6e6e73;
+      font-size: 11px;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tunnel-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute;
+      inset: 0;
+      background: #d2d2d7;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle .slider::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 2px;
+      top: 2px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .slider { background: #34C759; }
+    .toggle input:checked + .slider::before { transform: translateX(16px); }
+
+    /* Icon buttons */
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      color: #6e6e73;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .icon-btn:hover { background: #f0f0f0; color: #1d1d1f; }
+    .icon-btn.danger:hover { color: #FF3B30; }
+
+    /* ── Form View ── */
+    .form-group { margin-bottom: 12px; }
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #6e6e73;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d2d2d7;
+      border-radius: 6px;
+      font-size: 13px;
+      background: white;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #0071e3; }
+    .row { display: flex; gap: 12px; }
+    .row .form-group { flex: 1; }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .checkbox-group input { width: auto; }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #d2d2d7;
+      background: white;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover { background: #f0f0f0; }
+    button.primary {
+      background: #0071e3;
+      color: white;
+      border-color: #0071e3;
+    }
+    button.primary:hover { background: #0077ED; }
+    .error {
+      color: #FF3B30;
+      margin-top: 8px;
+      display: none;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- ── List View ── -->
+  <div id="list-view">
+    <div class="header">
+      <h2>SSH Tunnels</h2>
+      <button class="primary" id="add-btn">+ Add Tunnel</button>
+    </div>
+    <div id="tunnel-list" class="tunnel-list"></div>
+    <div id="empty-state" class="empty-state hidden">
+      <p>No tunnels configured</p>
+    </div>
+  </div>
+
+  <!-- ── Form View ── -->
+  <div id="form-view" class="hidden">
+    <div class="header">
+      <button id="back-btn" style="padding: 4px 10px;">← Back</button>
+      <h2 id="form-title" style="flex:1; text-align: center;">Add Tunnel</h2>
+      <div style="width: 70px;"></div>
+    </div>
+    <form id="tunnel-form">
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" id="name" placeholder="Production Postgres" required>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="host">SSH Host</label>
+          <input type="text" id="host" placeholder="bastion.example.com" required>
+        </div>
+        <div class="form-group">
+          <label for="user">User</label>
+          <input type="text" id="user" placeholder="ray">
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="localPort">Local Port</label>
+          <input type="number" id="localPort" placeholder="5433" required>
+        </div>
+        <div class="form-group">
+          <label for="remoteHost">Remote Host</label>
+          <input type="text" id="remoteHost" placeholder="db.internal" required>
+        </div>
+        <div class="form-group">
+          <label for="remotePort">Remote Port</label>
+          <input type="number" id="remotePort" placeholder="5432" required>
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="identityFile">Identity File (optional)</label>
+          <input type="text" id="identityFile" placeholder="~/.ssh/id_ed25519">
+        </div>
+        <div class="form-group">
+          <label for="sshPort">SSH Port</label>
+          <input type="number" id="sshPort" placeholder="22" value="22">
+        </div>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="enabled">
+        <label for="enabled" style="margin-bottom: 0; color: #1d1d1f;">Enable immediately</label>
+      </div>
+      <div class="error" id="error"></div>
+      <div class="actions">
+        <button type="button" id="cancel-btn">Cancel</button>
+        <button type="submit" class="primary" id="submit-btn">Add Tunnel</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="manage.js"></script>
+</body>
+</html>

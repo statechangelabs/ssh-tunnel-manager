@@ -17,7 +17,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let tray: Tray | null = null;
-let addWindow: BrowserWindow | null = null;
+let manageWindow: BrowserWindow | null = null;
 let configWatcher: ReturnType<typeof watchConfig> | null = null;
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -180,8 +180,8 @@ async function buildTrayMenu(): Promise<Menu> {
     ...tunnelItems,
     { type: "separator" },
     {
-      label: "Add Tunnel...",
-      click: () => openAddWindow(),
+      label: "Manage Tunnels...",
+      click: () => openManageWindow(),
     },
     {
       label: "Sync Now",
@@ -216,19 +216,18 @@ async function updateTray(): Promise<void> {
   tray.setToolTip(`SSH Tunnels: ${running.length}/${enabled.length} running`);
 }
 
-function openAddWindow(): void {
-  if (addWindow) {
-    addWindow.focus();
+function openManageWindow(): void {
+  if (manageWindow) {
+    manageWindow.focus();
     return;
   }
 
-  addWindow = new BrowserWindow({
-    width: 480,
-    height: 520,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    title: "Add SSH Tunnel",
+  manageWindow = new BrowserWindow({
+    width: 560,
+    height: 480,
+    minWidth: 400,
+    minHeight: 360,
+    title: "SSH Tunnels",
     webPreferences: {
       preload: join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -236,10 +235,10 @@ function openAddWindow(): void {
     },
   });
 
-  addWindow.loadFile(join(__dirname, "..", "renderer", "add-tunnel.html"));
+  manageWindow.loadFile(join(__dirname, "..", "renderer", "manage.html"));
 
-  addWindow.on("closed", () => {
-    addWindow = null;
+  manageWindow.on("closed", () => {
+    manageWindow = null;
   });
 }
 
@@ -273,6 +272,42 @@ ipcMain.handle("add-tunnel", async (_event, tunnelData: Omit<TunnelConfig, "id" 
 
   await updateTray();
   return tunnel;
+});
+
+ipcMain.handle("update-tunnel", async (_event, tunnelData: { id: string } & Omit<TunnelConfig, "id" | "extraArgs">) => {
+  const config = await readConfig();
+  const idx = config.tunnels.findIndex((t) => t.id === tunnelData.id);
+  if (idx === -1) throw new Error(`Tunnel '${tunnelData.id}' not found`);
+
+  const oldTunnel = config.tunnels[idx];
+  const newId = slugify(tunnelData.name);
+
+  // If name changed and new id conflicts with a different tunnel, reject
+  if (newId !== oldTunnel.id && config.tunnels.some((t) => t.id === newId)) {
+    throw new Error(`Tunnel with id '${newId}' already exists`);
+  }
+
+  // Stop old tunnel if it was running
+  await stopTunnel(oldTunnel.id);
+
+  config.tunnels[idx] = {
+    ...oldTunnel,
+    id: newId,
+    name: tunnelData.name,
+    host: tunnelData.host,
+    user: tunnelData.user,
+    localPort: tunnelData.localPort,
+    remoteHost: tunnelData.remoteHost,
+    remotePort: tunnelData.remotePort,
+    enabled: tunnelData.enabled,
+    identityFile: tunnelData.identityFile,
+    sshPort: tunnelData.sshPort,
+  };
+
+  await writeConfig(config);
+  await sync(config);
+  await updateTray();
+  return config.tunnels[idx];
 });
 
 ipcMain.handle("toggle-tunnel", async (_event, id: string) => {

@@ -1,3 +1,4 @@
+declare const PKG_VERSION: string;
 import { Command } from "commander";
 import {
   readConfig,
@@ -62,7 +63,7 @@ GOTCHAS:
   - Local port conflicts will cause the tunnel to fail immediately. Check
     "lsof -i :<port>" if a tunnel won't start.`
   )
-  .version("0.1.0");
+  .version(PKG_VERSION);
 
 let jsonOutput = false;
 program.option("--json", "Output as JSON (for programmatic/AI consumption)").hook("preAction", (cmd) => {

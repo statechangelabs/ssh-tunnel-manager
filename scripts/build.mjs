@@ -1,4 +1,7 @@
 import { build } from "esbuild";
+import { readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 
 // CLI entry point — ESM, bundles core + commander, externals: node builtins + chokidar + tree-kill
 await build({
@@ -8,6 +11,7 @@ await build({
   format: "esm",
   outfile: "dist/cli.mjs",
   external: ["chokidar", "tree-kill"],
+  define: { PKG_VERSION: JSON.stringify(pkg.version) },
   banner: {
     js: '#!/usr/bin/env node\nimport { createRequire } from "module"; const require = createRequire(import.meta.url);',
   },
